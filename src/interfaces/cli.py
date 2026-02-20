@@ -25,9 +25,9 @@ class CLI:
             formatter_class=argparse.RawDescriptionHelpFormatter,
             epilog='''
 Exemplos de uso:
-  python -m src.interfaces.cli scan https://api.exemplo.com
-  python -m src.interfaces.cli scan https://api.exemplo.com --timeout 600 --output resultado.json
-  python -m src.interfaces.cli list-modules
+  python main.py scan https://api.exemplo.com
+  python main.py scan https://api.exemplo.com --timeout 600 --output resultado.json
+  python main.py list-modules
             '''
         )
         
