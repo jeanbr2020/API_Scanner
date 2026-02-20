@@ -75,12 +75,15 @@ Exemplos de uso:
                 verify_ssl=True,
                 user_agent='API-Security-Scanner/1.0'
             )
+
+            logger = get_default_logger()  
             
             engine = ScanEngine(
                 http_client=http_client,
                 global_timeout=args.timeout,
                 module_timeout=args.module_timeout,
-                max_workers=5
+                max_workers=5,
+                logger=logger
             )
             
             modules_count = engine.load_modules()

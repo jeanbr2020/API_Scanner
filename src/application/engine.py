@@ -1,16 +1,14 @@
 """Engine principal de orquestração de scans."""
 
 import asyncio
-from typing import List, Optional, TYPE_CHECKING
+from typing import List, Optional
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
 
-from src.domain import Target, Scan, ScanResult, Vulnerability
+from src.domain import Target, Scan, ScanResult, Vulnerability, Severity
 from .contracts import SecurityModuleProtocol, HttpClientProtocol
 from .module_loader import ModuleLoader
 
-if TYPE_CHECKING:
-    from src.domain.entities import Severity
 
 class ScanEngine:
     
@@ -20,12 +18,14 @@ class ScanEngine:
         modules_dir: Optional[str] = None,
         global_timeout: int = 300,
         module_timeout: int = 30,
-        max_workers: int = 5
+        max_workers: int = 5,
+        logger = None
     ):
         self.http_client = http_client
         self.global_timeout = global_timeout
         self.module_timeout = module_timeout
         self.max_workers = max_workers
+        self.logger = logger
         
         self.module_loader = ModuleLoader(modules_dir)
         self.modules: List[SecurityModuleProtocol] = []
@@ -44,6 +44,9 @@ class ScanEngine:
         scan = Scan(target=target)
         scan.start()
         
+        if self.logger:
+            self.logger.log_scan_start(target.normalized_url, len(self.modules))
+        
         print(f"\n🔍 Iniciando scan em {target.normalized_url}")
         print(f"📦 {len(self.modules)} módulos ativos")
         print(f"⏱️  Timeout global: {self.global_timeout}s\n")
@@ -53,6 +56,9 @@ class ScanEngine:
             
             for vuln in vulnerabilities:
                 scan.add_vulnerability(vuln)
+                
+                if self.logger:
+                    self.logger.log_vulnerability_found(vuln)
             
             scan.finalize()
             
@@ -60,9 +66,21 @@ class ScanEngine:
             print(f"⏱️  Duração: {scan.get_duration():.2f}s")
             print(f"🔍 Vulnerabilidades encontradas: {scan.get_total_vulnerabilities()}")
             
+            if self.logger:
+                self.logger.log_scan_complete(
+                    target.normalized_url,
+                    scan.get_duration(),
+                    scan.get_total_vulnerabilities(),
+                    scan.score
+                )
+            
         except Exception as e:
             print(f"\n❌ Erro durante scan: {e}")
             scan.fail(reason=str(e))
+            
+            if self.logger:
+                self.logger.log_scan_error(target.normalized_url, str(e))
+            
             raise
         
         return ScanResult.from_scan(scan)
@@ -92,6 +110,9 @@ class ScanEngine:
                     except FuturesTimeoutError:
                         print(f"  ⏱️  {module.name}: TIMEOUT ({self.module_timeout}s)")
                         
+                        if self.logger:
+                            self.logger.log_module_timeout(module.name, self.module_timeout)
+                        
                         timeout_vuln = Vulnerability(
                             id=f"{module.name.upper()}-TIMEOUT",
                             title=f"Módulo {module.name} excedeu timeout",
@@ -103,6 +124,9 @@ class ScanEngine:
                     
                     except Exception as e:
                         print(f"  ❌ {module.name}: ERRO - {str(e)}")
+                        
+                        if self.logger:
+                            self.logger.log_module_error(module.name, str(e))
                         
                         error_vuln = Vulnerability(
                             id=f"{module.name.upper()}-ERROR",

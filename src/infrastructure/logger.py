@@ -1,3 +1,5 @@
+"""Sistema de logging estruturado."""
+
 import logging
 import sys
 from datetime import datetime
@@ -55,18 +57,28 @@ class ScanLogger:
         self.logger.critical(message)
     
     def log_scan_start(self, target_url: str, modules_count: int):
-        self.info(f"Iniciando scan em {target_url} com {modules_count} módulos")
+        self.info("=" * 80)
+        self.info("INICIANDO SCAN")
+        self.info("=" * 80)
+        self.info(f"Target: {target_url}")
+        self.info(f"Módulos ativos: {modules_count}")
+        self.info(f"Data/Hora: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     
     def log_scan_complete(self, target_url: str, duration: float, vulns_count: int, score: int):
-        self.info(
-            f"Scan completo em {target_url} | "
-            f"Duração: {duration:.2f}s | "
-            f"Vulnerabilidades: {vulns_count} | "
-            f"Score: {score}"
-        )
+        self.info("=" * 80)
+        self.info("SCAN FINALIZADO")
+        self.info("=" * 80)
+        self.info(f"Target: {target_url}")
+        self.info(f"Duração: {duration:.2f}s")
+        self.info(f"Vulnerabilidades encontradas: {vulns_count}")
+        self.info(f"Score final: {score}/100")
     
     def log_scan_error(self, target_url: str, error: str):
-        self.error(f"Erro no scan de {target_url}: {error}")
+        self.error("=" * 80)
+        self.error("SCAN FALHOU")
+        self.error("=" * 80)
+        self.error(f"Target: {target_url}")
+        self.error(f"Erro: {error}")
     
     def log_module_execution(self, module_name: str, vulns_found: int, duration: float):
         status = "FALHA" if vulns_found > 0 else "OK"
@@ -81,6 +93,44 @@ class ScanLogger:
     
     def log_module_timeout(self, module_name: str, timeout: int):
         self.warning(f"Módulo {module_name} excedeu timeout de {timeout}s")
+    
+    def log_vulnerability_found(self, vulnerability):
+        """
+        Loga detalhes completos de uma vulnerabilidade encontrada.
+        Usa nível de log baseado na severidade.
+        """
+        severity_value = vulnerability.severity.value.upper()
+        
+        log_methods = {
+            'critical': self.critical,
+            'high': self.error,
+            'medium': self.warning,
+            'low': self.info
+        }
+        
+        log_method = log_methods.get(vulnerability.severity.value, self.warning)
+        
+        log_method("=" * 80)
+        log_method("[VULNERABILIDADE DETECTADA]")
+        log_method(f"ID: {vulnerability.id}")
+        log_method(f"Título: {vulnerability.title}")
+        log_method(f"Severidade: {severity_value}")
+        log_method(f"Módulo: {vulnerability.module_name}")
+        
+        if vulnerability.description:
+            log_method(f"Descrição: {vulnerability.description}")
+        
+        if vulnerability.evidence:
+            log_method(f"Evidência: {vulnerability.evidence}")
+        
+        if vulnerability.recommendation:
+            log_method(f"Recomendação: {vulnerability.recommendation}")
+        
+        if vulnerability.reference:
+            log_method(f"Referência: {vulnerability.reference}")
+        
+        log_method(f"Timestamp: {vulnerability.timestamp}")
+        log_method("=" * 80)
 
 
 def get_default_logger() -> ScanLogger:

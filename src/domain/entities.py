@@ -83,7 +83,6 @@ class Target:
 
 
 @dataclass(frozen=True)
-@dataclass(frozen=True)
 class Vulnerability:
     """Representa uma vulnerabilidade detectada durante o scan."""
     
