@@ -165,15 +165,82 @@ class ScanResult:
         return result
     
     def __str__(self) -> str:
-        """Representação amigável do resultado."""
-        return (
-            f"Scan Result - {self.target_url}\n"
-            f"Score: {self.score}/100 (Risk Level: {self.risk_level})\n"
-            f"Vulnerabilities: {self.total_vulnerabilities} "
-            f"(C:{self.get_critical_count()} H:{self.get_high_count()} "
-            f"M:{self.get_medium_count()} L:{self.get_low_count()})\n"
-            f"Duration: {self.get_execution_time_formatted()}"
-        )
+        """Representação amigável e detalhada do resultado."""
+        lines = []
+        
+        lines.append("=" * 80)
+        lines.append("RELATÓRIO DE SCAN DE SEGURANÇA")
+        lines.append("=" * 80)
+        lines.append("")
+        
+        lines.append("TARGET:")
+        lines.append(f"  URL: {self.target_url}")
+        lines.append(f"  Secure (HTTPS): {'Sim' if self.target_is_secure else 'Não'}")
+        lines.append(f"  Scan ID: {self.scan_id}")
+        lines.append("")
+        
+        lines.append("RESUMO:")
+        lines.append(f"  Score: {self.score}/100")
+        lines.append(f"  Nível de Risco: {self.risk_level} - {self.get_risk_description()}")
+        lines.append(f"  Total de Vulnerabilidades: {self.total_vulnerabilities}")
+        lines.append(f"    - Críticas: {self.get_critical_count()}")
+        lines.append(f"    - Altas: {self.get_high_count()}")
+        lines.append(f"    - Médias: {self.get_medium_count()}")
+        lines.append(f"    - Baixas: {self.get_low_count()}")
+        lines.append("")
+        
+        lines.append("EXECUÇÃO:")
+        lines.append(f"  Duração: {self.get_execution_time_formatted()}")
+        lines.append("")
+        
+        if self.vulnerabilities_details:
+            lines.append("=" * 80)
+            lines.append("VULNERABILIDADES DETALHADAS")
+            lines.append("=" * 80)
+            lines.append("")
+            
+            severities = [
+                ("CRÍTICAS", "critical"),
+                ("ALTAS", "high"),
+                ("MÉDIAS", "medium"),
+                ("BAIXAS", "low")
+            ]
+            
+            for severity_label, severity_key in severities:
+                vulns = self.get_vulnerabilities_by_severity(severity_key)
+                
+                if vulns:
+                    lines.append("-" * 80)
+                    lines.append(f"VULNERABILIDADES {severity_label} ({len(vulns)})")
+                    lines.append("-" * 80)
+                    lines.append("")
+                    
+                    for i, vuln in enumerate(vulns, 1):
+                        lines.append(f"[{i}] {vuln['title']}")
+                        lines.append(f"    ID: {vuln['id']}")
+                        lines.append(f"    Severidade: {vuln['severity_label']}")
+                        lines.append(f"    Módulo: {vuln['module_name']}")
+                        
+                        if vuln.get('description'):
+                            lines.append(f"    Descrição: {vuln['description']}")
+                        
+                        if vuln.get('evidence'):
+                            lines.append(f"    Evidência: {vuln['evidence']}")
+                        
+                        if vuln.get('recommendation'):
+                            lines.append(f"    Recomendação: {vuln['recommendation']}")
+                        
+                        if vuln.get('reference'):
+                            lines.append(f"    Referência: {vuln['reference']}")
+                        
+                        lines.append(f"    Timestamp: {vuln['timestamp']}")
+                        lines.append("")
+        
+        lines.append("=" * 80)
+        lines.append("FIM DO RELATÓRIO")
+        lines.append("=" * 80)
+        
+        return "\n".join(lines)
     
     def __repr__(self) -> str:
         """Representação técnica do resultado."""
