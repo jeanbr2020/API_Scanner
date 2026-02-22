@@ -13,66 +13,68 @@ class CorsModule:
     priority = 1
     enabled = True
     
+    # Usando domínio reservado para testes (RFC 2606)
+    TEST_ORIGIN = "https://attacker.example.com"
+    
     def execute(self, target: Target, http_client: HttpClientProtocol) -> List[Vulnerability]:
         vulnerabilities = []
         
         try:
-            test_origin = "https://malicious-site.com"
-            
             response = http_client.options(
                 target.normalized_url,
-                timeout=10,
-                headers={'Origin': test_origin}
+                timeout=5,
+                headers={
+                    'Origin': self.TEST_ORIGIN,
+                    'Access-Control-Request-Method': 'GET',
+                    'Access-Control-Request-Headers': 'Content-Type'
+                }
             )
             
-            response_headers = {k.lower(): v for k, v in response.headers.items()}
+            acao = response.headers.get('Access-Control-Allow-Origin', '')
+            acac = response.headers.get('Access-Control-Allow-Credentials', '').lower()
+            acam = response.headers.get('Access-Control-Allow-Methods', '')
             
-            acao_header = response_headers.get('access-control-allow-origin')
-            acac_header = response_headers.get('access-control-allow-credentials')
-            
-            if acao_header == '*':
+            if acao == '*':
+                severity = Severity.CRITICAL if acac == 'true' else Severity.CRITICAL
+                
                 vulnerabilities.append(Vulnerability(
                     id="CORS-WILDCARD_ORIGIN",
                     title="CORS permite qualquer origem (*)",
-                    severity=Severity.CRITICAL,
+                    severity=severity,
                     module_name=self.name,
                     description="Access-Control-Allow-Origin configurado como *, permitindo qualquer site fazer requisições",
-                    evidence=f"Access-Control-Allow-Origin: {acao_header}",
+                    evidence=f"Access-Control-Allow-Origin: {acao}",
                     recommendation="Restringir origens permitidas para domínios específicos confiáveis",
                     reference="https://owasp.org/www-community/attacks/CORS_OriginHeaderScrutiny"
                 ))
-            
-            if acao_header and acac_header and acac_header.lower() == 'true':
-                if acao_header == '*':
+                
+                if acac == 'true':
                     vulnerabilities.append(Vulnerability(
-                        id="CORS-CREDENTIALS_WITH_WILDCARD",
-                        title="CORS permite credenciais com origem wildcard",
+                        id="CORS-WILDCARD_WITH_CREDENTIALS",
+                        title="CORS permite wildcard com credentials",
                         severity=Severity.CRITICAL,
                         module_name=self.name,
-                        description="Access-Control-Allow-Credentials: true combinado com origem wildcard",
-                        evidence=f"ACAO: {acao_header}, ACAC: {acac_header}",
-                        recommendation="Nunca usar wildcard (*) quando credentials estiver habilitado",
-                        reference="https://owasp.org/www-community/attacks/CORS_OriginHeaderScrutiny"
-                    ))
-                
-                elif acao_header == test_origin:
-                    vulnerabilities.append(Vulnerability(
-                        id="CORS-REFLECTS_ORIGIN",
-                        title="CORS reflete origem sem validação",
-                        severity=Severity.HIGH,
-                        module_name=self.name,
-                        description="Servidor reflete qualquer origem enviada sem validação apropriada",
-                        evidence=f"Origin enviada: {test_origin}, ACAO retornado: {acao_header}",
-                        recommendation="Implementar whitelist de origens permitidas ao invés de refletir",
+                        description="Combinação perigosa: wildcard origin + credentials habilitado",
+                        evidence=f"ACAO: {acao}, ACAC: {acac}",
+                        recommendation="Nunca usar wildcard (*) com credentials habilitado",
                         reference="https://owasp.org/www-community/attacks/CORS_OriginHeaderScrutiny"
                     ))
             
-            acam_header = response_headers.get('access-control-allow-methods')
-            if acam_header:
+            elif acao == self.TEST_ORIGIN:
+                vulnerabilities.append(Vulnerability(
+                    id="CORS-REFLECTS_ORIGIN",
+                    title="CORS reflete origem sem validação",
+                    severity=Severity.HIGH,
+                    module_name=self.name,
+                    description="Servidor reflete qualquer origem enviada sem validação apropriada",
+                    evidence=f"Origin enviada: {self.TEST_ORIGIN}, ACAO retornado: {acao}",
+                    recommendation="Implementar whitelist de origens permitidas ao invés de refletir",
+                    reference="https://owasp.org/www-community/attacks/CORS_OriginHeaderScrutiny"
+                ))
+            
+            if acam:
                 dangerous_methods = ['PUT', 'DELETE', 'PATCH', 'TRACE']
-                allowed_methods = [m.strip().upper() for m in acam_header.split(',')]
-                
-                found_dangerous = [m for m in dangerous_methods if m in allowed_methods]
+                found_dangerous = [m for m in dangerous_methods if m in acam.upper()]
                 
                 if found_dangerous:
                     vulnerabilities.append(Vulnerability(
@@ -81,12 +83,12 @@ class CorsModule:
                         severity=Severity.MEDIUM,
                         module_name=self.name,
                         description=f"Métodos perigosos permitidos via CORS: {', '.join(found_dangerous)}",
-                        evidence=f"Access-Control-Allow-Methods: {acam_header}",
+                        evidence=f"Access-Control-Allow-Methods: {acam}",
                         recommendation="Restringir métodos CORS apenas aos necessários (GET, POST)",
                         reference="https://owasp.org/www-community/attacks/CORS_RequestPreflighScrutiny"
                     ))
         
-        except Exception as e:
-            raise RuntimeError(f"Erro ao verificar CORS: {str(e)}")
+        except Exception:
+            pass
         
         return vulnerabilities
