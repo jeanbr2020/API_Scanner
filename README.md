@@ -47,6 +47,7 @@ O **API Security Scanner** é uma ferramenta de linha de comando que analisa API
 | **Headers** | 7 security headers críticos (HSTS, CSP, X-Frame-Options, etc) |
 | **CORS** | Misconfigurações, wildcard origins, reflection attacks |
 | **Rate Limiting** | Ausência de proteção contra brute force |
+| **Authentication** | Endpoints sem autenticação, bypass de controle de acesso |
 
 ### Recursos
 
@@ -86,6 +87,8 @@ O projeto segue **Clean Architecture** com separação em camadas:
 ---
 
 ## 🚀 Instalação
+
+> 💡 **Em breve:** Instalação via pip estará disponível!
 
 ### Pré-requisitos
 
@@ -224,6 +227,34 @@ Testa **proteção contra brute force**:
 
 **Referência:** [OWASP Blocking Brute Force](https://owasp.org/www-community/controls/Blocking_Brute_Force_Attacks)
 
+### 4. Authentication Module
+
+Detecta **falhas de autenticação e controle de acesso**:
+
+#### Endpoints Testados:
+- **7 CRITICAL**: `/admin`, `/api/admin`, `/api/admin/users`, `/api/config`, `/api/settings`, `/console`, `/api/internal`
+- **7 HIGH**: `/api/users`, `/api/customers`, `/api/orders`, `/api/payments`, `/api/transactions`, `/api/dashboard`, `/api/reports`
+- **5 MEDIUM**: `/api/profile`, `/api/account`, `/api/me`, `/api/user`, `/api/data`
+- **6 LOW**: `/api/status`, `/api/health`, `/api/metrics`, `/api/logs`, `/api/debug`
+
+#### Testes Realizados:
+- ❌ **Sem autenticação** → Endpoint retorna 200 sem Authorization header
+- ❌ **Token vazio** → `Authorization: Bearer ` aceito
+- ❌ **Token inválido** → `Authorization: Bearer invalid_token` aceito
+- ❌ **Token malformado** → Token com formato incorreto aceito
+
+#### Métodos HTTP testados:
+- GET, POST, PUT, DELETE
+
+#### Características:
+- ✅ **Execução paralela** (5 workers simultâneos)
+- ✅ **Smart skip** (se GET retorna 404, pula outros métodos)
+- ✅ **Detecção REST API** (ignora HTML, aceita apenas JSON/XML)
+- ✅ **Delay de 0.3s** entre requisições (respeitoso)
+- ✅ **Timeout de 3s** por requisição
+
+**Referência:** [OWASP Broken Authentication](https://owasp.org/API-Security/editions/2023/en/0xa2-broken-authentication/)
+
 ---
 
 ## 📊 Sistema de Pontuação
@@ -297,7 +328,8 @@ API_Scan/
 │       ├── __init__.py
 │       ├── headers_module.py      # Verificação de headers
 │       ├── cors_module.py         # Verificação CORS
-│       └── rate_limit_module.py   # Verificação rate limit
+│       ├── rate_limit_module.py   # Verificação rate limit
+│       └── authentication_module.py # Verificação de autenticação
 │
 ├── main.py                         # Ponto de entrada
 ├── requirements.txt                # Dependências
@@ -324,15 +356,16 @@ python main.py scan https://httpbin.org
 🔒 Secure: Sim (HTTPS)
 
 🔍 Iniciando scan em https://httpbin.org
-📦 3 módulos ativos
+📦 4 módulos ativos
 ⏱️  Timeout global: 300s
 
   🔴 headers_module: 8 vulnerabilidade(s)
   🔴 cors_module: 2 vulnerabilidade(s)
   🔴 rate_limit_module: 1 vulnerabilidade(s)
+  🟢 authentication_module: 0 vulnerabilidade(s)
 
 ✅ Scan finalizado!
-⏱️  Duração: 7.68s
+⏱️  Duração: 8.50s
 🔍 Vulnerabilidades encontradas: 11
 
 ════════════════════════════════════════════════════════════════
@@ -368,22 +401,79 @@ python main.py scan https://httpbin.org --output resultado.json
     "is_secure": true
   },
   "scan_id": "97477508-e983-44b5-a906-1a554d53a9bf",
-  "vulnerabilities": {
-    "total": 11,
+  "summary": {
+    "total_vulnerabilities": 11,
     "by_severity": {
       "critical": 0,
       "high": 4,
       "medium": 4,
       "low": 3
-    }
+    },
+    "score": 0,
+    "risk_level": "D",
+    "risk_description": "Alto Risco - Ação imediata recomendada"
   },
-  "score": 0,
-  "risk": {
-    "level": "D",
-    "description": "Alto Risco - Ação imediata recomendada"
+  "execution": {
+    "duration_seconds": 6.396141,
+    "duration_formatted": "6.40s"
   },
-  "execution_time": 6.396141,
-  "execution_time_formatted": "6.40s"
+  "vulnerabilities": {
+    "critical": [],
+    "high": [
+      {
+        "id": "HEADERS-STRICT_TRANSPORT_SECURITY",
+        "title": "Missing Security Header: Strict-Transport-Security",
+        "severity": "high",
+        "severity_label": "Alto",
+        "module_name": "headers_module",
+        "description": "Força uso de HTTPS",
+        "evidence": "Header 'Strict-Transport-Security' não encontrado na resposta",
+        "recommendation": "Adicionar: Strict-Transport-Security: max-age=31536000; includeSubDomains",
+        "reference": "https://owasp.org/www-project-secure-headers/#http-strict-transport-security",
+        "timestamp": "2024-02-18T14:30:48.123456"
+      },
+      {
+        "id": "HEADERS-CONTENT_SECURITY_POLICY",
+        "title": "Missing Security Header: Content-Security-Policy",
+        "severity": "high",
+        "severity_label": "Alto",
+        "module_name": "headers_module",
+        "description": "Previne XSS e injection attacks",
+        "evidence": "Header 'Content-Security-Policy' não encontrado na resposta",
+        "recommendation": "Adicionar Content-Security-Policy com diretivas apropriadas",
+        "reference": "https://owasp.org/www-project-secure-headers/#content-security-policy",
+        "timestamp": "2024-02-18T14:30:48.234567"
+      }
+    ],
+    "medium": [
+      {
+        "id": "HEADERS-X_FRAME_OPTIONS",
+        "title": "Missing Security Header: X-Frame-Options",
+        "severity": "medium",
+        "severity_label": "Médio",
+        "module_name": "headers_module",
+        "description": "Protege contra clickjacking",
+        "evidence": "Header 'X-Frame-Options' não encontrado na resposta",
+        "recommendation": "Adicionar: X-Frame-Options: DENY ou SAMEORIGIN",
+        "reference": "https://owasp.org/www-community/attacks/Clickjacking",
+        "timestamp": "2024-02-18T14:30:47.123456"
+      }
+    ],
+    "low": [
+      {
+        "id": "HEADERS-X_XSS_PROTECTION",
+        "title": "Missing Security Header: X-XSS-Protection",
+        "severity": "low",
+        "severity_label": "Baixo",
+        "module_name": "headers_module",
+        "description": "Ativa proteção XSS do browser",
+        "evidence": "Header 'X-XSS-Protection' não encontrado na resposta",
+        "recommendation": "Adicionar: X-XSS-Protection: 1; mode=block",
+        "reference": "https://owasp.org/www-community/attacks/xss/",
+        "timestamp": "2024-02-18T14:30:48.345678"
+      }
+    ]
+  }
 }
 ```
 
@@ -395,8 +485,8 @@ python main.py list-modules
 
 **Output:**
 ```
-📦 Total de módulos: 3
-✅ Ativos: 3
+📦 Total de módulos: 4
+✅ Ativos: 4
 ❌ Desabilitados: 0
 
 ────────────────────────────────────────────────────────────────
@@ -410,6 +500,9 @@ STATUS   NOME                      CATEGORIA       PRIORIDADE
 
 ✓        rate_limit_module         rate_limiting   2
          Verifica se a API possui rate limiting para prevenir brute force
+
+✓        authentication_module     authentication  4
+         Detecta falhas de autenticação e bypass de controle de acesso
 ```
 
 ---
@@ -470,10 +563,22 @@ Vulnerability(
 
 ## 🎯 Roadmap
 
+### Versão Atual (v1.0)
+
+- [x] Headers security verification
+- [x] CORS misconfiguration detection
+- [x] Rate limiting checks
+- [x] Authentication & access control testing
+- [x] Parallel module execution
+- [x] Detailed logging system
+- [x] JSON/TXT export
+
 ### Versão Futura
 
+- [ ] **Publicação no PyPI** (instalação via pip)
+- [ ] JWT security module
 - [ ] Testes unitários com pytest
-- [ ] Módulos adicionais (SQL Injection, Authentication, SSL/TLS)
+- [ ] Módulos adicionais (SQL Injection, SSL/TLS, XSS)
 - [ ] Relatórios HTML com gráficos
 - [ ] Exportação para PDF
 - [ ] API REST (FastAPI)
