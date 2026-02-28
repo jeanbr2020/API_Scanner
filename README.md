@@ -159,7 +159,7 @@ python main.py scan --help
 |-------|-----------|--------|
 | `--timeout` | Timeout global em segundos | 300 |
 | `--module-timeout` | Timeout por módulo em segundos | 30 |
-| `--output` | Arquivo de saída (JSON/TXT) | - |
+| `--output` | Arquivo de saída (JSON/TXT). Para JSON a saída não pode sobrescrever um arquivo existente; escolha um nome único. | - |
 | `--no-color` | Desabilitar cores no terminal | False |
 | `--verbose` | Logs detalhados | False |
 
@@ -175,7 +175,7 @@ python main.py scan https://httpbin.org
 python main.py scan https://api.exemplo.com --timeout 600 --module-timeout 60
 ```
 
-**Scan com saída JSON:**
+**Scan com saída JSON (arquivo deve ser exclusivo no diretório):**
 ```bash
 python main.py scan https://api.exemplo.com --output resultado.json
 ```

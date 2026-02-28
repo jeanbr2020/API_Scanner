@@ -210,15 +210,22 @@ Exemplos de uso:
         
         try:
             if path.suffix.lower() == '.json':
+                if path.exists():
+                    self._print_error(
+                        f"❌ O arquivo '{path.name}' já existe no diretório "
+                        f"'{path.parent}'. Escolha outro nome ou mova o arquivo existente."
+                    )
+                    return
+
                 with open(path, 'w', encoding='utf-8') as f:
                     json.dump(result.to_dict(), f, indent=2, ensure_ascii=False)
-                
+
                 self._print_success(f"✅ Resultado salvo em: {path}")
             
             else:
                 with open(path, 'w', encoding='utf-8') as f:
                     f.write(str(result))
-                
+
                 self._print_success(f"✅ Resultado salvo em: {path}")
         
         except Exception as e:
