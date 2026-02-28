@@ -175,7 +175,7 @@ python main.py scan https://httpbin.org
 python main.py scan https://api.exemplo.com --timeout 600 --module-timeout 60
 ```
 
-**Scan com saída JSON (arquivo deve ser exclusivo no diretório):**
+**Scan com saída JSON (arquivo deve ser exclusivo no diretório ou seja não seram permitidos arquivos com nomes iguais no mesmo diretório):**
 ```bash
 python main.py scan https://api.exemplo.com --output resultado.json
 ```
